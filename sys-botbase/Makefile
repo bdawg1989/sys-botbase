@@ -7,74 +7,76 @@ endif
 TOPDIR ?= $(CURDIR)
 include $(DEVKITPRO)/libnx/switch_rules
 
-TARGET		:=	sys-botbase
-BUILD		:=	build
-SOURCES		:=	source
-DATA		:=	data
-INCLUDES	:=	include
-EXEFS_SRC	:=	exefs_src
+TARGET      := sys-botbase
+BUILD       := build
+SOURCES     := source
+DATA        := data
+INCLUDES    := include
+EXEFS_SRC   := exefs_src
 
-ARCH	:=	-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE
+OUTPUT_DIR := $(BUILD)/atmosphere/contents/430000000000000B
 
-CFLAGS	:=	-g -Wall -O2 -ffunction-sections \
-			$(ARCH) $(DEFINES)
+ARCH    := -march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE
 
-CFLAGS	+=	$(INCLUDE) -D__SWITCH__
+CFLAGS  := -g -Wall -O2 -ffunction-sections \
+            $(ARCH) $(DEFINES)
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
+CFLAGS  += $(INCLUDE) -D__SWITCH__
 
-ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+CXXFLAGS    := $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 
-LIBS	:= -lm -lnx
+ASFLAGS := -g $(ARCH)
+LDFLAGS = -specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBDIRS	:= $(PORTLIBS) $(LIBNX)
+LIBS    := -lm -lnx
+
+LIBDIRS := $(PORTLIBS) $(LIBNX)
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
-export TOPDIR	:=	$(CURDIR)
+export OUTPUT  := $(CURDIR)/$(TARGET)
+export TOPDIR  := $(CURDIR)
 
-export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
-			$(foreach dir,$(DATA),$(CURDIR)/$(dir))
+export VPATH   := $(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
+            $(foreach dir,$(DATA),$(CURDIR)/$(dir))
 
-export DEPSDIR	:=	$(CURDIR)/$(BUILD)
+export DEPSDIR := $(CURDIR)/$(BUILD)
 
-CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
-CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
-SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
+CFILES      := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+CPPFILES    := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
+SFILES      := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
+BINFILES    := $(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
 ifeq ($(strip $(CPPFILES)),)
-	export LD	:=	$(CC)
+    export LD  := $(CC)
 else
-	export LD	:=	$(CXX)
+    export LD  := $(CXX)
 endif
 
-export OFILES_BIN	:=	$(addsuffix .o,$(BINFILES))
-export OFILES_SRC	:=	$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
-export OFILES 	:=	$(OFILES_BIN) $(OFILES_SRC)
-export HFILES_BIN	:=	$(addsuffix .h,$(subst .,_,$(BINFILES)))
+export OFILES_BIN  := $(addsuffix .o,$(BINFILES))
+export OFILES_SRC  := $(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
+export OFILES      := $(OFILES_BIN) $(OFILES_SRC)
+export HFILES_BIN  := $(addsuffix .h,$(subst .,_,$(BINFILES)))
 
-export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
-			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
-			-I$(CURDIR)/$(BUILD)
+export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
+            $(foreach dir,$(LIBDIRS),-I$(dir)/include) \
+            -I$(CURDIR)/$(BUILD)
 
-export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
 export BUILD_EXEFS_SRC := $(TOPDIR)/$(EXEFS_SRC)
 
 ifeq ($(strip $(CONFIG_JSON)),)
-	jsons := $(wildcard *.json)
-	ifneq (,$(findstring $(TARGET).json,$(jsons)))
-		export APP_JSON := $(TOPDIR)/$(TARGET).json
-	else
-		ifneq (,$(findstring config.json,$(jsons)))
-			export APP_JSON := $(TOPDIR)/config.json
-		endif
-	endif
+    jsons := $(wildcard *.json)
+    ifneq (,$(findstring $(TARGET).json,$(jsons)))
+        export APP_JSON := $(TOPDIR)/$(TARGET).json
+    else
+        ifneq (,$(findstring config.json,$(jsons)))
+            export APP_JSON := $(TOPDIR)/config.json
+        endif
+    endif
 else
-	export APP_JSON := $(TOPDIR)/$(CONFIG_JSON)
+    export APP_JSON := $(TOPDIR)/$(CONFIG_JSON)
 endif
 
 .PHONY: $(BUILD) clean all
@@ -91,30 +93,42 @@ clean:
 
 #---------------------------------------------------------------------------------
 else
-.PHONY:	all
+.PHONY: all
 
-DEPENDS	:=	$(OFILES:.o=.d)
+DEPENDS := $(OFILES:.o=.d)
 
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
-all	:	$(OUTPUT).nsp
+all: $(OUTPUT).nsp $(OUTPUT)_exefs.nsp
 
 ifeq ($(strip $(APP_JSON)),)
-$(OUTPUT).nsp	:	$(OUTPUT).nso
+$(OUTPUT).nsp: $(OUTPUT).nso
 else
-$(OUTPUT).nsp	:	$(OUTPUT).nso $(OUTPUT).npdm
+$(OUTPUT).nsp: $(OUTPUT).nso $(OUTPUT).npdm
 endif
 
-$(OUTPUT).nso	:	$(OUTPUT).elf
+$(OUTPUT).nso: $(OUTPUT).elf
 
-$(OUTPUT).elf	:	$(OFILES)
+$(OUTPUT).elf: $(OFILES)
 
-$(OFILES_SRC)	: $(HFILES_BIN)
+$(OFILES_SRC): $(HFILES_BIN)
 
-%.bin.o	%_bin.h :	%.bin
+%.bin.o %_bin.h: %.bin
 	@echo $(notdir $<)
 	@$(bin2o)
+
+# New target to build exefs.nsp using hactoolnet and move it to the desired directory
+$(OUTPUT)_exefs.nsp: $(OUTPUT).nso $(OUTPUT).npdm
+	@echo "Building $(OUTPUT)_exefs.nsp with hactoolnet"
+	@mkdir -p $(BUILD)/exefs
+	@cp $(OUTPUT).nso $(BUILD)/exefs/main
+	@cp $(OUTPUT).npdm $(BUILD)/exefs/main.npdm
+	@hactoolnet -t pfsbuild --outfile $(OUTPUT)_exefs.nsp $(BUILD)/exefs
+	@rm -rf $(BUILD)/exefs
+	@mkdir -p $(OUTPUT_DIR)/flags
+	@touch $(OUTPUT_DIR)/flags/boot2.flag
+	@mv $(OUTPUT)_exefs.nsp $(OUTPUT_DIR)/exefs.nsp
 
 -include $(DEPENDS)
 
